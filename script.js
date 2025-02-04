@@ -1,4 +1,5 @@
 let smoothedConfidence = 50; // Start at a neutral confidence level
+let lastBox = null; // Stores the last detected face box for smoother tracking
 
 function lerp(start, end, amount) {
     return start + (end - start) * amount;
@@ -61,7 +62,7 @@ function setupCanvas() {
 
     const context = canvas.getContext('2d');
 
-    // Position & size canvas properly
+    // Set the canvas size dynamically to match video
     canvas.style.position = "absolute";
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
@@ -83,22 +84,32 @@ async function detectBluffing() {
         if (detections) {
             context.clearRect(0, 0, canvas.width, canvas.height); // Clear previous drawings
 
-            // **Fix: Scale detected face box properly**
+            // **Fix: Scale face box properly to match video dimensions**
             const box = detections.detection.box;
             const scaleX = canvas.width / video.videoWidth;
             const scaleY = canvas.height / video.videoHeight;
 
-            // Adjust for mobile to keep box neatly around the face
-            const x = box.x * scaleX;
-            const y = box.y * scaleY;
-            const width = box.width * scaleX * 0.95; // Shrink slightly
-            const height = box.height * scaleY * 0.95; // Shrink slightly
+            // Adjusting face box to be more stable and centered
+            let x = box.x * scaleX;
+            let y = box.y * scaleY;
+            let width = box.width * scaleX * 0.9; // Shrink slightly for a better fit
+            let height = box.height * scaleY * 0.9;
 
-            // Adjust stroke to fit face position
+            // **Smooth box movement to prevent jitter**
+            if (lastBox) {
+                x = lerp(lastBox.x, x, 0.3);
+                y = lerp(lastBox.y, y, 0.3);
+                width = lerp(lastBox.width, width, 0.3);
+                height = lerp(lastBox.height, height, 0.3);
+            }
+
+            lastBox = { x, y, width, height }; // Store last position for smooth tracking
+
+            // Adjust stroke color based on bluffing detection
             context.strokeStyle = 'green';
             context.lineWidth = 3;
 
-            // Analyze emotions for bluffing
+            // **Analyze emotions to determine bluffing probability**
             const expressions = detections.expressions;
             let label = "Not Bluffing";
             let color = "green";
@@ -110,7 +121,7 @@ async function detectBluffing() {
                 (expressions.disgusted || 0) * 1.1;
 
             let targetConfidence = Math.min((bluffingScore * 100).toFixed(0), 100);
-            smoothedConfidence = lerp(smoothedConfidence, targetConfidence, 0.15); // Smooth transition
+            smoothedConfidence = lerp(smoothedConfidence, targetConfidence, 0.2); // Smoother transition
 
             let displayConfidence = Math.round(smoothedConfidence);
 
@@ -122,10 +133,10 @@ async function detectBluffing() {
                 label = `Not Bluffing ${100 - displayConfidence}%`;
             }
 
-            // **Fix: Keep box size proper for all screen sizes**
+            // **Fix: Keep face box neatly around the face and smooth movements**
             context.strokeRect(x, y, width, height);
 
-            // Draw label above the face box
+            // Draw label above face box
             context.fillStyle = color;
             context.font = "18px Arial";
             context.fillRect(x, y - 30, width, 30); // Background for text
