@@ -26,7 +26,7 @@ function startVideo() {
 
     const constraints = {
         video: {
-            facingMode: "user", // Front-facing camera
+            facingMode: "user",
             width: { ideal: 1280 },
             height: { ideal: 720 }
         },
@@ -38,7 +38,7 @@ function startVideo() {
             video.srcObject = stream;
             video.play();
             video.onloadedmetadata = () => {
-                setupCanvas();
+                setupCanvas(); // Ensure canvas is set up once video starts
                 detectBluffing();
             };
         })
@@ -50,17 +50,17 @@ function startVideo() {
 
 function setupCanvas() {
     const video = document.getElementById('video');
-    const canvas = document.createElement('canvas');
+    const canvas = document.createElement('canvas'); // Create canvas
     canvas.id = "faceCanvas";
     document.body.appendChild(canvas);
     const context = canvas.getContext('2d');
 
-    // Set the canvas to exactly match the video feed size
+    // Position & size canvas properly
     canvas.style.position = "absolute";
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.style.left = video.offsetLeft + "px";
     canvas.style.top = video.offsetTop + "px";
+    canvas.style.left = video.offsetLeft + "px";
+    canvas.width = video.videoWidth; 
+    canvas.height = video.videoHeight;
 
     return context;
 }
@@ -77,17 +77,8 @@ async function detectBluffing() {
         if (detections) {
             context.clearRect(0, 0, canvas.width, canvas.height); // Clear previous drawings
 
-            // **Fix: Scale detected face box properly**
+            // Get face box
             const box = detections.detection.box;
-            const scaleX = canvas.width / video.videoWidth;
-            const scaleY = canvas.height / video.videoHeight;
-
-            const x = box.x * scaleX;
-            const y = box.y * scaleY;
-            const width = box.width * scaleX;
-            const height = box.height * scaleY;
-
-            // Adjusting stroke to fit face position
             context.strokeStyle = 'green';
             context.lineWidth = 3;
 
@@ -97,10 +88,10 @@ async function detectBluffing() {
             let color = "green";
 
             const bluffingScore =
-                (expressions.angry || 0) * 1.2 +
-                (expressions.surprised || 0) * 1.2 +
-                (expressions.fearful || 0) * 1.5 +
-                (expressions.disgusted || 0) * 1.1;
+                (expressions.angry || 0) * 1.2 +  
+                (expressions.surprised || 0) * 1.2 +  
+                (expressions.fearful || 0) * 1.5 +  
+                (expressions.disgusted || 0) * 1.1;  
 
             let targetConfidence = Math.min((bluffingScore * 100).toFixed(0), 100);
             smoothedConfidence = lerp(smoothedConfidence, targetConfidence, 0.15); // Smooth transition
@@ -115,15 +106,15 @@ async function detectBluffing() {
                 label = `Not Bluffing ${100 - displayConfidence}%`;
             }
 
-            // Draw bounding box **on correct face position**
-            context.strokeRect(x, y, width, height);
+            // Draw bounding box
+            context.strokeRect(box.x, box.y, box.width, box.height);
 
-            // Draw label above the face box
+            // Draw label above box
             context.fillStyle = color;
             context.font = "20px Arial";
-            context.fillRect(x, y - 25, width, 25); // Background for text
+            context.fillRect(box.x, box.y - 25, box.width, 25);
             context.fillStyle = "white";
-            context.fillText(label, x + 5, y - 5);
+            context.fillText(label, box.x + 5, box.y - 5);
         }
     }, 200);
 }
