@@ -7,15 +7,13 @@ function lerp(start, end, amount) {
 async function startFaceAPI() {
     const loadingBar = document.getElementById("loading-bar");
 
-    // Load the tinyFaceDetector model (50% progress)
+    // Load models
     await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/');
     loadingBar.style.width = "50%";
 
-    // Load the faceExpression model (100% progress)
     await faceapi.nets.faceExpressionNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/');
     loadingBar.style.width = "100%";
 
-    // Hide the loading bar once models are loaded
     setTimeout(() => {
         document.getElementById("loading-container").style.display = "none";
     }, 500);
@@ -28,8 +26,8 @@ function startVideo() {
 
     const constraints = {
         video: {
-            facingMode: "user", // Ensure front-facing camera
-            width: { ideal: 1280 }, // Adjust for mobile performance
+            facingMode: "user",
+            width: { ideal: 1280 },
             height: { ideal: 720 }
         },
         audio: false
@@ -39,6 +37,10 @@ function startVideo() {
         .then(stream => {
             video.srcObject = stream;
             video.play();
+            video.onloadedmetadata = () => {
+                setupCanvas(); // Ensure canvas is set up once video starts
+                detectBluffing();
+            };
         })
         .catch(err => {
             console.error("Camera error:", err);
@@ -46,16 +48,27 @@ function startVideo() {
         });
 }
 
-async function detectBluffing() {
+function setupCanvas() {
     const video = document.getElementById('video');
-    const canvas = document.createElement('canvas'); // Create a canvas for drawing
+    const canvas = document.createElement('canvas'); // Create canvas
+    canvas.id = "faceCanvas";
     document.body.appendChild(canvas);
     const context = canvas.getContext('2d');
+
+    // Position & size canvas properly
     canvas.style.position = "absolute";
     canvas.style.top = video.offsetTop + "px";
     canvas.style.left = video.offsetLeft + "px";
-    canvas.width = video.width;
-    canvas.height = video.height;
+    canvas.width = video.videoWidth; 
+    canvas.height = video.videoHeight;
+
+    return context;
+}
+
+async function detectBluffing() {
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('faceCanvas');
+    const context = canvas.getContext('2d');
 
     setInterval(async () => {
         const detections = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
@@ -64,57 +77,59 @@ async function detectBluffing() {
         if (detections) {
             context.clearRect(0, 0, canvas.width, canvas.height); // Clear previous drawings
 
-            // Get the face box
+            // Get face box
             const box = detections.detection.box;
-            context.strokeStyle = 'green'; // Default to green
+            context.strokeStyle = 'green';
             context.lineWidth = 3;
 
-            // Analyze emotions
+            // Analyze emotions for bluffing
             const expressions = detections.expressions;
             let label = "Not Bluffing";
-            let color = "green"; // Default to green
+            let color = "green";
 
-            // Bluffing Detection with Smoother Confidence Changes
             const bluffingScore =
-                (expressions.angry || 0) * 1.2 +   // Increased weight for "angry"
-                (expressions.surprised || 0) * 1.2 +  // Increased weight for "surprised"
-                (expressions.fearful || 0) * 1.5 + // Fearful is more significant
-                (expressions.disgusted || 0) * 1.1; // Include "disgusted"
+                (expressions.angry || 0) * 1.2 +  
+                (expressions.surprised || 0) * 1.2 +  
+                (expressions.fearful || 0) * 1.5 +  
+                (expressions.disgusted || 0) * 1.1;  
 
-            let targetConfidence = Math.min((bluffingScore * 100).toFixed(0), 100); // Confidence percentage (0-100)
-
-            // Smooth transition of confidence
-            smoothedConfidence = lerp(smoothedConfidence, targetConfidence, 0.15); // Adjust 0.15 to control speed of transition
+            let targetConfidence = Math.min((bluffingScore * 100).toFixed(0), 100);
+            smoothedConfidence = lerp(smoothedConfidence, targetConfidence, 0.15); // Smooth transition
 
             let displayConfidence = Math.round(smoothedConfidence);
 
-            if (bluffingScore > 0.1) { // Lower threshold for higher sensitivity
-                label = `Bluffing ${displayConfidence}%`; // Show confidence percentage
-                color = "red"; // Change to red for bluffing
-                context.strokeStyle = 'red'; // Box color changes
+            if (bluffingScore > 0.1) {
+                label = `Bluffing ${displayConfidence}%`;
+                color = "red";
+                context.strokeStyle = 'red';
             } else {
-                label = `Not Bluffing ${100 - displayConfidence}%`; // Opposite confidence
+                label = `Not Bluffing ${100 - displayConfidence}%`;
             }
 
-            // Draw the box
+            // Draw bounding box
             context.strokeRect(box.x, box.y, box.width, box.height);
 
-            // Add the label above the box
+            // Draw label above box
             context.fillStyle = color;
             context.font = "20px Arial";
-            context.fillRect(box.x, box.y - 25, box.width, 25); // Label background
+            context.fillRect(box.x, box.y - 25, box.width, 25);
             context.fillStyle = "white";
-            context.fillText(label, box.x + 5, box.y - 5); // Label text
+            context.fillText(label, box.x + 5, box.y - 5);
         }
-    }, 200); // Runs every 200ms for smoother updates
+    }, 200);
 }
 
+// Resize canvas dynamically if window resizes
 window.addEventListener("resize", () => {
     const video = document.getElementById('video');
-    video.style.width = window.innerWidth + "px";
-    video.style.height = window.innerHeight + "px";
+    const canvas = document.getElementById('faceCanvas');
+    if (canvas) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+    }
 });
 
-// Start everything
-startFaceAPI().then(detectBluffing);
+// Start
+startFaceAPI();
+
 
