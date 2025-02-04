@@ -54,7 +54,6 @@ function setupCanvas() {
     const video = document.getElementById('video');
     let canvas = document.getElementById('faceCanvas');
 
-    // If the canvas doesn't exist, create it
     if (!canvas) {
         canvas = document.createElement('canvas');
         canvas.id = "faceCanvas";
@@ -91,9 +90,9 @@ async function detectBluffing() {
             const scaleX = video.videoWidth / canvas.width;
             const scaleY = video.videoHeight / canvas.height;
 
-            // Adjusting face box to be more stable and centered
+            // Adjusting face box to be more centered & higher up (fix Y-axis)
             let x = box.x / scaleX;
-            let y = box.y / scaleY;
+            let y = box.y / scaleY - (box.height * 0.15); // Move box up slightly
             let width = (box.width / scaleX) * 0.9; // Shrink slightly for a better fit
             let height = (box.height / scaleY) * 0.9;
 
@@ -148,9 +147,14 @@ async function detectBluffing() {
     }, 200);
 }
 
-// **Fix: Ensure canvas resizes when screen size changes**
+// **Fix: Handle Orientation Changes Properly**
 window.addEventListener("resize", () => {
+    console.log("Screen rotated, adjusting canvas...");
     setupCanvas();
+});
+window.addEventListener("orientationchange", () => {
+    console.log("Orientation changed, resetting...");
+    setTimeout(() => setupCanvas(), 500); // Small delay to let rotation finish
 });
 
 // Start
