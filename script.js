@@ -39,6 +39,7 @@ function startVideo() {
             video.srcObject = stream;
             video.play();
             video.onloadedmetadata = () => {
+                console.log("Video size:", video.videoWidth, video.videoHeight); // Debug
                 setupCanvas();
                 detectBluffing();
             };
@@ -62,10 +63,11 @@ function setupCanvas() {
 
     const context = canvas.getContext('2d');
 
-    // Set the canvas size dynamically to match video
-    canvas.style.position = "absolute";
+    // Ensure canvas matches video dimensions dynamically
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
+    console.log("Canvas size:", canvas.width, canvas.height); // Debug
+    canvas.style.position = "absolute";
     canvas.style.left = video.offsetLeft + "px";
     canvas.style.top = video.offsetTop + "px";
 
@@ -86,14 +88,14 @@ async function detectBluffing() {
 
             // **Fix: Scale face box properly to match video dimensions**
             const box = detections.detection.box;
-            const scaleX = canvas.width / video.videoWidth;
-            const scaleY = canvas.height / video.videoHeight;
+            const scaleX = video.videoWidth / canvas.width;
+            const scaleY = video.videoHeight / canvas.height;
 
             // Adjusting face box to be more stable and centered
-            let x = box.x * scaleX;
-            let y = box.y * scaleY;
-            let width = box.width * scaleX * 0.9; // Shrink slightly for a better fit
-            let height = box.height * scaleY * 0.9;
+            let x = box.x / scaleX;
+            let y = box.y / scaleY;
+            let width = (box.width / scaleX) * 0.9; // Shrink slightly for a better fit
+            let height = (box.height / scaleY) * 0.9;
 
             // **Smooth box movement to prevent jitter**
             if (lastBox) {
