@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Bluff Detector</title>
     <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.min.js"></script>
     <style>
@@ -21,9 +21,9 @@
 
         video {
             width: 100vw;
-            height: auto;
-            transform: rotate(0deg);
+            height: 100vh;
             object-fit: cover;
+            transform: rotate(0deg);
         }
 
         #loading-container {
@@ -32,6 +32,8 @@
             width: 80%;
             background-color: #ddd;
             border-radius: 10px;
+            text-align: center;
+            padding: 5px;
         }
 
         #loading-bar {
@@ -48,6 +50,7 @@
             text-align: center;
         }
 
+        /* Adjust layout for mobile */
         @media only screen and (max-width: 768px) {
             h1 {
                 font-size: 16px;
@@ -55,7 +58,7 @@
 
             video {
                 width: 100vw;
-                height: auto;
+                height: 100vh;
             }
 
             #loading-container {
@@ -74,7 +77,8 @@
     <div id="loading-container">
         <div id="loading-bar"></div>
     </div>
-    <video id="video" autoplay></video>
+    <video id="video" autoplay playsinline></video>
     <script src="script.js"></script>
 </body>
 </html>
+
